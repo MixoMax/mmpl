@@ -1,0 +1,63 @@
+{
+    "left": {
+        "left": {
+            "left": {
+                "left": {
+                    "left": {
+                        "left": {
+                            "left": {
+                                "left": {
+                                    "left": {
+                                        "left": {
+                                            "result": 0
+                                        },
+                                        "right": {
+                                            "result": 1
+                                        },
+                                        "operator": "add"
+                                    },
+                                    "right": {
+                                        "result": 1
+                                    },
+                                    "operator": "add"
+                                },
+                                "right": {
+                                    "result": 1
+                                },
+                                "operator": "add"
+                            },
+                            "right": {
+                                "result": 1
+                            },
+                            "operator": "add"
+                        },
+                        "right": {
+                            "result": 1
+                        },
+                        "operator": "add"
+                    },
+                    "right": {
+                        "result": 1
+                    },
+                    "operator": "add"
+                },
+                "right": {
+                    "result": 1
+                },
+                "operator": "add"
+            },
+            "right": {
+                "result": 1
+            },
+            "operator": "add"
+        },
+        "right": {
+            "result": 1
+        },
+        "operator": "add"
+    },
+    "right": {
+        "result": 1
+    },
+    "operator": "add"
+}
