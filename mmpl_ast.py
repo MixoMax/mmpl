@@ -1,4 +1,53 @@
+# !/usr/bin/python3
+#
+#%% Comments
+#
+# Created on: 12/08/2024
+# Auther: Linus Horn <linus@linush.org>
+# -------------------------------------
+#
+# Comments and Notes
+# ------------------
+#
+# 12/08/2024 - 15:37
+# Example comment
+# - Example Author
+# 
+# 
+# 12/08/2024 - 19:49
+# This entire codebase was written on an
+# Airplane with no internet connection.
+# This means that i had no AI autocomplete,
+# and, more importantly no language syntax
+# reference / documentation.
+# This is the reason why i implemented the
+# ´add´ operator using a standard ´def´ function
+# instead of writing a lambda for it
+# because i forgot the syntax for lambdas.
+# I think it was something like this:
+# > add = lambda x,y: return x+y
+# but this did not work and the red squiggles
+# were not helpful enough to help me figure it out
+# - Linus Horn
+#
+#
+# 12/08/2024 - 19:55
+# Time since last message: 6 minutes
+# nvm, i figured out the syntax for
+# lambda functions in Python.
+# It is like this:
+# > add = lambda x,y: x+y
+# > print(add(3,6))
+# > >>>9
+# - Linus Horn
+
+
+#%% actual code
+
+
+
 import json
+import time
 
 
 
@@ -115,25 +164,34 @@ class TreeNode:
 
 
 
-def add(x,y):
-    return x+y
+add = lambda x,y: x+y
 
 operator_add = Operator(
     func=add
 )
 
-node_1 = TreeNode(result = 1)
+node_in = TreeNode(result = 4)
 
 n_out = TreeNode(result = 0)
 
-for _ in range(10):
+for _ in range(800):
     n_out = TreeNode(
         left = n_out,
-        right = node_1,
+        right = node_in,
         operator=operator_add
     )
 
 
-with open("./tmp.json", "w", encoding="utf-8") as f:
-    data = n_out.to_json()
-    f.write(json.dumps(data, indent=4))
+t_start_ns = time.perf_counter_ns()
+
+
+res = n_out.solve().result
+
+
+t_end_ns = time.perf_counter_ns()
+
+ns_taken = t_end_ns - t_start_ns
+ms_taken = ns_taken / 1_000_000
+
+print(f"{ms_taken=}")
+

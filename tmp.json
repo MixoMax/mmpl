@@ -12,52 +12,52 @@
                                             "result": 0
                                         },
                                         "right": {
-                                            "result": 1
+                                            "result": 4
                                         },
-                                        "operator": "add"
+                                        "operator": "<lambda>"
                                     },
                                     "right": {
-                                        "result": 1
+                                        "result": 4
                                     },
-                                    "operator": "add"
+                                    "operator": "<lambda>"
                                 },
                                 "right": {
-                                    "result": 1
+                                    "result": 4
                                 },
-                                "operator": "add"
+                                "operator": "<lambda>"
                             },
                             "right": {
-                                "result": 1
+                                "result": 4
                             },
-                            "operator": "add"
+                            "operator": "<lambda>"
                         },
                         "right": {
-                            "result": 1
+                            "result": 4
                         },
-                        "operator": "add"
+                        "operator": "<lambda>"
                     },
                     "right": {
-                        "result": 1
+                        "result": 4
                     },
-                    "operator": "add"
+                    "operator": "<lambda>"
                 },
                 "right": {
-                    "result": 1
+                    "result": 4
                 },
-                "operator": "add"
+                "operator": "<lambda>"
             },
             "right": {
-                "result": 1
+                "result": 4
             },
-            "operator": "add"
+            "operator": "<lambda>"
         },
         "right": {
-            "result": 1
+            "result": 4
         },
-        "operator": "add"
+        "operator": "<lambda>"
     },
     "right": {
-        "result": 1
+        "result": 4
     },
-    "operator": "add"
+    "operator": "<lambda>"
 }
