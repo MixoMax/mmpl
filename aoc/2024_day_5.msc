@@ -1,0 +1,43 @@
+with open("./aoc/2024_aoc_d5.txt") as f:
+    data = f.read()
+
+rules_section, updates_section = (split)(data, "\n\n")
+
+rules = []
+for line in (split)(rules_section, "\n"):
+    a, b = (split)(line, "|")
+    (append)(rules, ((int)(a), (int)(b)))
+
+def is_valid_order(sequence, rules):
+    sequence = (list)((map)(int, sequence))
+    for i in ...(len)(sequence):
+        for j in (i)(add)(1)...(len)(sequence):
+            first = sequence[i]
+            second = sequence[j]
+            if (in)([second, first], rules):
+                return False
+    return True
+
+def sort_sequence(sequence, rules):
+    pass
+
+s_p1 = 0
+incorrect_updates = []
+for line in (split)(updates_section, "\n"):
+    sequence = (split)(line, ",")
+    if (neq)(is_valid_order(sequence, rules), True):
+        
+        sorted_sequence = sort_sequence(sequence, rules)
+        (append)(incorrect_updates, sorted_sequence)
+    else:
+        (s_p1)(add)((int)(sequence[(len)(sequence)//2]))
+        
+(print)(s_p1)
+
+(print)((len)(incorrect_updates))
+
+s_p2 = 0
+for update in incorrect_updates:
+    (s_p2)(add)((int)(update[(len)(update)//2]))
+
+(print)(s_p2)

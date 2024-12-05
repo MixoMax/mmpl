@@ -8,7 +8,7 @@
 import re
 import sys
 
-DEBUG = False
+DEBUG = True
 
 class MSCTranspiler:
     def __init__(self):
@@ -39,26 +39,41 @@ class MSCTranspiler:
         # ARGS are seperated by commas
         # ARGS can be variables, literals or other function calls
 
-        assignment_call_re = re.compile(r"((?:.*)|(?:\s*))?(.*)\s*\((\w+)\)\s*\((.*)\)")
+        assignment_call_re = re.compile(r"((?:.*)|(?:\s*))\((.*)\)\s*\((.+)\)\s*\((.*)\)")
         normal_call_re = re.compile(r"((?:.*)|(?:\s*))?\((.*)\)\s*\((.*)\)")
 
-        # Assignment call format: VAR (FUNC) (ARGS)
+        # Assignment call format: PREV (VAR) (FUNC) (ARGS)
         if match := assignment_call_re.match(line):
             prev, var, func, args = match.groups()
+            if DEBUG:
+                print(f"Assignment call: prev={prev}, var={var}, func={func}, args={args}")
             prev = prev.strip()
 
             if len(prev) != 0:
                 if prev[0] == "(" and prev[-1] == ")":
-                    var = f"{prev[1:-1]}{var}"
+                    var = f"{prev[1:-1]})({var}"
                     prev = ""
-
+            
             if DEBUG:
                 print(f"prev={prev}, var={var}, func={func}, args={args}")
 
+
+
+            args = var + "," + args
+
             args = self._parse_args(args)
             
-            if var != "":
-                args.insert(0, var)
+            if DEBUG:
+                print(f"ARGS: {args}")
+
+            if "(" in prev and ")" in prev:
+                var = prev[prev.index("(")+1:prev.index(")")]
+                prev = prev[:prev.index("(")]
+                if DEBUG:
+                    print(f"VAR: {var}")
+                    print(f"PREV: {prev}")
+
+
 
             if func.startswith("!"):
                 func = func[1:]
@@ -66,11 +81,19 @@ class MSCTranspiler:
             
             if var == "":
                 var = None
-            
 
             if DEBUG:
                 print(f"{var}={func}({', '.join(args)})")
             
+            if IF_MODE:
+                var = None
+
+            if DEBUG:
+                print("FUNCTION: ", func, args)
+
+            if func.strip().startswith("?"):
+                func = func.strip()[1:]
+                var = None
 
             out = prev + self.transform_function(var, func, args, use_walrus=IF_MODE)
 
@@ -82,16 +105,23 @@ class MSCTranspiler:
             return out
 
 
+        # ---
+
         # Normal call format: (FUNC) (ARGS)
 
         if match := normal_call_re.match(line):
             prev, func, args = match.groups()
             prev = prev.strip()
 
+            if DEBUG:
+                print(f"Normal call: prev={prev}, func={func}, args={args}")
+
             if len(prev) != 0:
                 if prev[0] == "(" and prev[-1] == ")":
                     args = f"{prev[1:-1]},{args}"
                     prev = ""
+
+            
 
 
             args = self._parse_args(args)
@@ -118,12 +148,22 @@ class MSCTranspiler:
     def _parse_args(self, args):
         tmp_args = [arg.strip() for arg in args.split(",")]
         parsed_args = []
-        bracket_level = 0
+        levels = {
+            "bracket": 0,
+            "bracket_square": 0,
+            "quote": 0,
+            "double_quote": 0,
+        }
         current_arg = ""
+
         for arg in tmp_args:
-            bracket_level += arg.count("(") - arg.count(")")
+            levels["bracket"] += arg.count("(") - arg.count(")")
+            levels["bracket_square"] += arg.count("[") - arg.count("]")
+            levels["quote"] += arg.count("'")
+            levels["double_quote"] += arg.count('"')
+
             current_arg += arg + ","
-            if bracket_level == 0:
+            if levels["bracket"] == 0 and levels["bracket_square"] == 0 and levels["quote"] % 2 == 0 and levels["double_quote"] % 2 == 0:
                 parsed_args.append(current_arg[:-1])
                 current_arg = ""
         if current_arg:
@@ -164,6 +204,8 @@ class MSCTranspiler:
                 "strcat": ["str", "str", "str"],
 
                 "len": ["list|str", "int"],
+
+                "get": ["list|dict", "int|str", "?Any", "Any"],
                 "index": ["list|str", "Any", "int"],
                 "append": ["list", "Any", "list"],
                 "remove": ["list", "Any", "list"],
@@ -192,6 +234,33 @@ class MSCTranspiler:
                 "chr": ["int", "str"],
                 "ord": ["str", "int"],
             }
+            if func not in function_arg_types:
+                return ["Any", "Any"]
+            return function_arg_types[func]
+    
+    def _get_default_args(self, func):
+        default_args = {
+            "get": ["X", "X", "None"],
+        }
+        if func not in default_args:
+            return []
+        return default_args[func]
+    
+
+    def _literal_type(self, arg):
+        if arg.isdigit():
+            return "int"
+        if arg.replace(".", "", 1).isdigit():
+            return "float"
+        if arg.startswith("'") and arg.endswith("'"):
+            return "str"
+        if arg in ["True", "False"]:
+            return "bool"
+        if arg.startswith("[") and arg.endswith("]"):
+            return "list"
+        if arg.startswith("{") and arg.endswith("}"):
+            return "dict"
+        return "Any"
 
     def transform_function(self, var, func, args, use_walrus=False):
         if DEBUG:
@@ -226,6 +295,7 @@ class MSCTranspiler:
             "len": lambda x: f"len({x})",
 
             # list functions
+            "get": lambda x, y, z: f"({x}[{y}] if {y} < len({x}) else {z}) if type({x}) == list else ({x}.get({y}, {z}) if type({x}) == dict else {z})",
             "index": lambda x, y: f"{x}.index({y})",
             "append": lambda x, y: f"{x}.append({y})",
             "remove": lambda x, y: f"{x}.remove({y})",
@@ -261,6 +331,39 @@ class MSCTranspiler:
 
         }
         
+        # get function arguments and do type checking
+        func_args = self.get_function_args(func)
+        in_args = func_args[:-1]
+        ret_arg = func_args[-1]
+
+        n_in_args_max = len(in_args)
+        n_in_args_min = len([arg for arg in in_args if not arg.startswith("?")])
+
+        if n_in_args_min > len(args) or len(args) > n_in_args_max:
+            raise ValueError(f"Function {func} expects {len(in_args)} arguments, got {len(args)}: {args}")
+        
+        if len(args) < n_in_args_max:
+            args.extend(["X"] * (n_in_args_max - len(args)))
+            default_args = self._get_default_args(func)
+            for arg_idx in range(n_in_args_max):
+                if default_args[arg_idx] == "X":
+                    continue
+                if args[arg_idx] == "X":
+                    args[arg_idx] = default_args[arg_idx]
+
+                
+
+
+        for idx, (arg, in_arg) in enumerate(zip(args, in_args)):
+            arg_type = self._literal_type(arg)
+            if in_arg == "Any" or arg_type == "Any":
+                # Either in_arg takes in Any or the arg is not a literal
+                continue
+            if arg_type not in in_arg.split("|"):
+                raise ValueError(f"Argument [{idx+1}] of function [{func}] must be of type [{in_arg}], got [{arg_type}]")
+            
+
+
         if func not in function_map:
             return f"{func}({', '.join(args)})"
         
@@ -286,6 +389,8 @@ class MSCTranspiler:
             
         # Handle for loops
         if line.startswith("for"):
+
+            # Handle X...Y^Z range format
             match = re.match(r"for\s+(\w+)\s+in\s+(.+):", line)
             if match:
                 var, range_expr = match.groups()
@@ -294,7 +399,13 @@ class MSCTranspiler:
 
                 if "..." in range_expr:
                     range_expr = self.parse_range(range_expr)
+                else:
+                    range_expr = self.parse_function_call(range_expr, IF_MODE=True)
                 return f"{'    ' * self.indent_level}for {var} in {range_expr}:"
+            
+            # Handle for loops with function call
+            func_call = line[line.index("("):-1]
+            return f"{'    ' * self.indent_level}for {self.parse_function_call(func_call)}:"
         
         # Handle while loops
         if line.startswith("while"):
