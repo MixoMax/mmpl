@@ -7,8 +7,17 @@
 
 import re
 import sys
+from dataclasses import dataclass
+from typing import List, Union
 
-DEBUG = True
+DEBUG = False
+
+@dataclass
+class Function:
+    name: str
+    args: List[Union[str, "Function"]]
+    return_type: str
+
 
 class MSCTranspiler:
     def __init__(self):
@@ -22,11 +31,11 @@ class MSCTranspiler:
         
         start, end = range_expr.split("...")
         start = start.strip() if start.strip() else "0"
-        start = self.parse_function_call(start, IF_MODE=True)
-        end = self.parse_function_call(end, IF_MODE=True)
+        start = self.parse_function_call2(start, IGNORE_PREV=True)
+        end = self.parse_function_call2(end, IGNORE_PREV=True)
         return f"range({start}, {end}, {step})"
 
-    def parse_function_call(self, line, IF_MODE=False):
+    def _parse_function_call(self, line, IF_MODE=False):
         assert isinstance(line, str), f"line must be a string, got {type(line)}"
         line = line.strip()
         if line.startswith("if"):
@@ -101,7 +110,7 @@ class MSCTranspiler:
                 print(f"Transformed {line} to {out}")
 
             if normal_call_re.match(out) or assignment_call_re.match(out):
-                return self.parse_function_call(out)
+                return self.parse_function_call2(out)
             return out
 
 
@@ -139,12 +148,84 @@ class MSCTranspiler:
                 print(f"Transformed {line} to {out}")
 
             if normal_call_re.match(out) or assignment_call_re.match(out):
-                return self.parse_function_call(out)
+                return self.parse_function_call2(out)
             return out
         
         
         return line
     
+    def parse_function_call2(self, line, IGNORE_PREV=False):
+        assert isinstance(line, str), f"line must be a string, got {type(line)}"
+        line = line.strip()
+
+        if not self._is_function(line):
+            return line
+
+        first_bracket = line.index("(")
+        prev, line = line[:first_bracket], line[first_bracket:]
+        
+        if not IGNORE_PREV:
+            prev = prev.strip()
+        else:
+            prev = ""
+
+
+        bracket_blocks = []
+        bracket_depth = 0
+        current_block = ""
+        for char in line:
+            current_block += char
+            if char == "(":
+                bracket_depth += 1
+            if char == ")":
+                bracket_depth -= 1
+                if bracket_depth == 0:
+                    bracket_blocks.append(current_block)
+                    current_block = ""
+                    
+
+        if len(bracket_blocks) == 3:
+            # Assignment call format: PREV (VAR) (FUNC) (ARGS)
+            use_walrus = prev != ""
+
+            var, func, args = bracket_blocks
+            var = var[1:-1]
+            func = func[1:-1]
+            args = args[1:-1]
+            args = var + "," + args
+            args = self._parse_args(args)
+            
+            if func.startswith("?"):
+                func = func[1:]
+                var = None
+            
+            out = self.transform_function(var, func, args, use_walrus=use_walrus)
+            if prev != "":
+                out = f"{prev} {out}"
+            return out
+        
+        if len(bracket_blocks) == 2:
+            # Normal call format: (FUNC) (ARGS)
+            func, args = bracket_blocks
+            func = func[1:-1]
+            args = args[1:-1]
+            args = self._parse_args(args)
+
+            
+            out = self.transform_function(None, func, args)
+            if prev:
+                out = f"{prev} = {out}"
+            return out
+        
+        return line
+
+            
+            
+
+
+    def _is_function(self, txt: str) -> bool:
+        return "(" in txt and ")" in txt
+
     def _parse_args(self, args):
         tmp_args = [arg.strip() for arg in args.split(",")]
         parsed_args = []
@@ -171,7 +252,7 @@ class MSCTranspiler:
 
         for idx, arg in enumerate(parsed_args):
             if arg.startswith("(") and arg.endswith(")"):
-                parsed_args[idx] = self.parse_function_call(arg)
+                parsed_args[idx] = self.parse_function_call2(arg)
 
         parsed_args = [arg.strip() for arg in parsed_args if arg.strip()]
 
@@ -217,7 +298,7 @@ class MSCTranspiler:
                 "extend": ["list", "list", "list"],
 
 
-                "print": ["Any|List[Any]", "None"],
+                "print": ["*Any|List[Any]", "None"],
                 "type": ["Any", "type"],
 
                 "eq": ["Any", "Any", "bool"],
@@ -295,7 +376,7 @@ class MSCTranspiler:
             "len": lambda x: f"len({x})",
 
             # list functions
-            "get": lambda x, y, z: f"({x}[{y}] if {y} < len({x}) else {z}) if type({x}) == list else ({x}.get({y}, {z}) if type({x}) == dict else {z})",
+            "get": lambda x, y, z: f"({x}[{y}] if {y} <= len({x}) else {z}) if type({x}) == list else ({x}.get({y}, {z}) if type({x}) == dict else {z})",
             "index": lambda x, y: f"{x}.index({y})",
             "append": lambda x, y: f"{x}.append({y})",
             "remove": lambda x, y: f"{x}.remove({y})",
@@ -336,8 +417,18 @@ class MSCTranspiler:
         in_args = func_args[:-1]
         ret_arg = func_args[-1]
 
+        # ? means optional argument
+        # * means any number of arguments of the following type
+
         n_in_args_max = len(in_args)
-        n_in_args_min = len([arg for arg in in_args if not arg.startswith("?")])
+        n_in_args_min = len([arg for arg in in_args if not "?" in arg])
+
+        if any("*" in arg for arg in in_args):
+            n_in_args_max = 999999
+            n_in_args_min = 0
+
+            in_args.extend(["Any"] * (len(args) - len(in_args)))
+
 
         if n_in_args_min > len(args) or len(args) > n_in_args_max:
             raise ValueError(f"Function {func} expects {len(in_args)} arguments, got {len(args)}: {args}")
@@ -381,7 +472,12 @@ class MSCTranspiler:
         # Handle indentation
         indent = len(line) - len(line.lstrip())
         self.indent_level = indent // 4
+
+        if "#" in line:
+            line = line[:line.index("#")]
+        
         line = line.strip()
+
         
         # Skip empty lines
         if not line:
@@ -400,12 +496,12 @@ class MSCTranspiler:
                 if "..." in range_expr:
                     range_expr = self.parse_range(range_expr)
                 else:
-                    range_expr = self.parse_function_call(range_expr, IF_MODE=True)
+                    range_expr = self.parse_function_call2(range_expr, IGNORE_PREV=True)
                 return f"{'    ' * self.indent_level}for {var} in {range_expr}:"
             
             # Handle for loops with function call
             func_call = line[line.index("("):-1]
-            return f"{'    ' * self.indent_level}for {self.parse_function_call(func_call)}:"
+            return f"{'    ' * self.indent_level}for {self.parse_function_call2(func_call)}:"
         
         # Handle while loops
         if line.startswith("while"):
@@ -413,7 +509,7 @@ class MSCTranspiler:
             
         # Handle if statements
         if line.startswith("if"):
-            return f"{'    ' * self.indent_level}if {self.parse_function_call(line, IF_MODE=True)}:"
+            return f"{'    ' * self.indent_level}if {self.parse_function_call2(line, IGNORE_PREV=True)}:"
             
         # Handle break and continue
         if line in ["break", "continue"]:
@@ -421,12 +517,12 @@ class MSCTranspiler:
             
         # Handle function calls
         if "(" in line:
-            return f"{'    ' * self.indent_level}{self.parse_function_call(line)}"
+            return f"{'    ' * self.indent_level}{self.parse_function_call2(line)}"
 
         # Handle variable assignments
         if "=" in line:
             var, expr = line.split("=")
-            return f"{'    ' * self.indent_level}{var.strip()} = {self.parse_function_call(expr.strip())}"
+            return f"{'    ' * self.indent_level}{var.strip()} = {self.parse_function_call2(expr.strip())}"
         
         return f"{'    ' * self.indent_level}{line}"
 

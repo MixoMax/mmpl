@@ -1,6 +1,6 @@
 # MixoMax Scripting Language
 
-(.msc)
+Read about the built-in Functions at the [Function Reference](Function-Reference.md)
 
 ## Key ideas:
 
@@ -22,28 +22,30 @@ As seen later on, a Variable can change its type.
 
 ### 2. Variables
 
+Variables are declared by assigning a value to them. The type of the variable is inferred from the value.
 
 ### 3. Functions
 
 A function can be called in two ways:
 
 Assignment function call:
-`a (function) (b, c, ...)`
+`(a) (function) (b, c, ...)`
+or  
+`(a) (?function) (b, c, ...)`
 
 Direct function call:
 `(function) (a, b, c, ...)`
 
-The first way automatically assigns the return value to the first variable, while the second way does not.
 
-The first way could also be written as:
-`a = (function) (a, b, c, ...)`
+The difference between these three is that the first automatically store the return value in `a` and the other two do not.  The difference between the second and the third is just stylistic preference.  
 
 
-Example:
 
-Assingment functions:
+Examples:
 
-1) `a (int) a` 
+Assignment functions:
+
+1) `a (int)` 
 ```
 a = "4"
 a (int)
@@ -54,34 +56,34 @@ would print `int 4`
 
 
 
-2) `a (add) b` 
+2) `(a) (add) (b)` 
 ```
 a = 4
 b = 2
-a (add) (b)
+(a) (add) (b)
 (print) (a)
 ```
 
 would print `6`
 
 
-3) `a (split) b`
+3) `(a) (split) (b)`
 ```
 a = "hello world"
 b = " "
-a (split) (b)
+(a) (split) (b)
 (print) ((type) (a), a)
 ```
 
 would print `list ["hello", "world"]`
 
 
-4) `a (join) b`
+4) `(a) (join) (b)`
 ```
 a = ['hello', 'world']
 b = " "
 
-a (join) (b)
+(a) (join) (b)
 (print) (a)
 ```
 
@@ -101,7 +103,7 @@ l = (len) (a)
 would print `5`
 
 
-2) `(add) 4, 2`
+2) `(add) (4, 2)`
 ```
 a = (add) (4, 2)
 (print) (a)
@@ -110,7 +112,7 @@ a = (add) (4, 2)
 would print `6`
 
 
-3) `(split) "hello world", " "`
+3) `(split) ("hello world", " ")`
 ```
 a = (split) ("hello world", " ")
 
@@ -119,7 +121,7 @@ a = (split) ("hello world", " ")
 would print `["hello", "world"]`
 
 
-4) `(join) ["hello", "world"], " "`
+4) `(join) (["hello", "world"], " ")`
 ```
 a = (join) (("hello", "world"), " ")
 
