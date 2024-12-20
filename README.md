@@ -6,4 +6,6 @@ mmpl is a superset of python. Any valid python programm should (**!** not guaran
 
 The main difference is that mmpl provides a different function calling interface such that functions operate on the main variable and store the return value in it.  
 
-Read more at the [Docs](docs.md)
+Read more at the [Docs](docs.md) or the [Function Reference](Function-Reference.md)  
+
+For code examples, see the `./examples` folder.  

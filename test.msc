@@ -1,71 +1,9 @@
-def is_valid(txt):
-    req_1 = False
-    req_2 = True
-    req_3 = False
-
-    txt_len = (len)(txt)
-    for i in 0...(txt_len)(sub)(2):
-        char_0 = (ord)(txt[i])
-        char_1 = (ord)(txt[i + 1])
-        char_2 = (ord)(txt[i + 2])
-        if (eq)(char_0, (sub)(char_1, 1)):
-            if (eq)(char_1, (sub)(char_2, 1)):
-                req_1 = True
-        
-    # "i", "o", "l" are not allowed
-    for i in 0...txt_len:
-        char = txt[1]
-        if (in)(char, "iol"):
-            req_1 = False
+n = 100
+for i in 2...n:
+    is_prime = True
+    for j in 2...i:
+        if (0)(?eq)((mod)(i, j)):
+            is_prime = False
             break
-    txt_len = (len)(txt)
-    # check for two non-overlapping pairs of letters
-    for i in ...(txt_len)(sub)(1):
-        # found the first pair
-        if (eq)(txt[i], txt[i + 1]):
-            for j in (add)(i, 2)...txt_len:
-                if (eq)(txt[j], txt[j + 1]):
-                    req_3 = True
-                    break
-            if req_3:
-                break
-            
-    #(print)(req_1, req_2, req_3)
-    return req_1 and req_2 and req_3
-
-def increment(txt):
-    txt_ord = []
-
-    for i in 0...(len)(txt):
-        (append)(txt_ord, (ord)(txt[i]))
-    
-    # Increment the last character
-    # if it is 'z', then increment the second last character
-    # and set the last character to 'a'
-
-    i = (len)(txt_ord)
-    (i)(sub)(1)
-    while i > 0:
-        if (eq)(txt_ord[i], (ord)("z")):
-            txt_ord[i] = (ord)("a")
-            i = (sub)(i, 1)
-        else:
-            txt_ord[i] = (add)(txt_ord[i], 1)
-            break
-    
-    txt = ""
-    for i in 0...(len)(txt_ord):
-        (txt)(strcat)((chr)(txt_ord[i]))
-    
-    return txt
-
-
-txt = "vzbxkghb"
-
-i = 0
-while not is_valid(txt):
-    (i)(add)(1)
-    (print)(i, txt)
-    txt = increment(txt)
-
-(print)(txt)
+    if is_prime:
+        (print) (i)

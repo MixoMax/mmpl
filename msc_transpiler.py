@@ -10,7 +10,12 @@ import sys
 from dataclasses import dataclass
 from typing import List, Union
 
-DEBUG = False
+DEBUG = True
+
+def printd(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+
 
 @dataclass
 class Function:
@@ -35,6 +40,7 @@ class MSCTranspiler:
         end = self.parse_function_call2(end, IGNORE_PREV=True)
         return f"range({start}, {end}, {step})"
 
+    # DEPRECATED: Replaced by self.parse_function_call2()
     def _parse_function_call(self, line, IF_MODE=False):
         assert isinstance(line, str), f"line must be a string, got {type(line)}"
         line = line.strip()
@@ -54,8 +60,7 @@ class MSCTranspiler:
         # Assignment call format: PREV (VAR) (FUNC) (ARGS)
         if match := assignment_call_re.match(line):
             prev, var, func, args = match.groups()
-            if DEBUG:
-                print(f"Assignment call: prev={prev}, var={var}, func={func}, args={args}")
+            printd(f"Assignment call: prev={prev}, var={var}, func={func}, args={args}")
             prev = prev.strip()
 
             if len(prev) != 0:
@@ -63,8 +68,7 @@ class MSCTranspiler:
                     var = f"{prev[1:-1]})({var}"
                     prev = ""
             
-            if DEBUG:
-                print(f"prev={prev}, var={var}, func={func}, args={args}")
+            printd(f"prev={prev}, var={var}, func={func}, args={args}")
 
 
 
@@ -72,15 +76,14 @@ class MSCTranspiler:
 
             args = self._parse_args(args)
             
-            if DEBUG:
-                print(f"ARGS: {args}")
+            printd(f"ARGS: {args}")
 
             if "(" in prev and ")" in prev:
                 var = prev[prev.index("(")+1:prev.index(")")]
                 prev = prev[:prev.index("(")]
-                if DEBUG:
-                    print(f"VAR: {var}")
-                    print(f"PREV: {prev}")
+
+                printd(f"VAR: {var}")
+                printd(f"PREV: {prev}")
 
 
 
@@ -91,14 +94,14 @@ class MSCTranspiler:
             if var == "":
                 var = None
 
-            if DEBUG:
-                print(f"{var}={func}({', '.join(args)})")
+            
+            printd(f"{var}={func}({', '.join(args)})")
             
             if IF_MODE:
                 var = None
 
-            if DEBUG:
-                print("FUNCTION: ", func, args)
+            
+            printd("FUNCTION: ", func, args)
 
             if func.strip().startswith("?"):
                 func = func.strip()[1:]
@@ -106,8 +109,8 @@ class MSCTranspiler:
 
             out = prev + self.transform_function(var, func, args, use_walrus=IF_MODE)
 
-            if DEBUG:
-                print(f"Transformed {line} to {out}")
+            
+            printd(f"Transformed {line} to {out}")
 
             if normal_call_re.match(out) or assignment_call_re.match(out):
                 return self.parse_function_call2(out)
@@ -122,8 +125,8 @@ class MSCTranspiler:
             prev, func, args = match.groups()
             prev = prev.strip()
 
-            if DEBUG:
-                print(f"Normal call: prev={prev}, func={func}, args={args}")
+            
+            printd(f"Normal call: prev={prev}, func={func}, args={args}")
 
             if len(prev) != 0:
                 if prev[0] == "(" and prev[-1] == ")":
@@ -168,6 +171,7 @@ class MSCTranspiler:
             prev = prev.strip()
         else:
             prev = ""
+        
 
 
         bracket_blocks = []
@@ -180,9 +184,11 @@ class MSCTranspiler:
             if char == ")":
                 bracket_depth -= 1
                 if bracket_depth == 0:
-                    bracket_blocks.append(current_block)
+                    bracket_blocks.append(current_block.strip())
                     current_block = ""
-                    
+
+        printd(f"PREV: {prev}")
+        printd(f"BRACKET BLOCKS: {bracket_blocks}")
 
         if len(bracket_blocks) == 3:
             # Assignment call format: PREV (VAR) (FUNC) (ARGS)
@@ -211,10 +217,14 @@ class MSCTranspiler:
             args = args[1:-1]
             args = self._parse_args(args)
 
+            printd(f"NORMAL CALL: {func=}, {args=}")
+
+
             
             out = self.transform_function(None, func, args)
             if prev:
                 out = f"{prev} = {out}"
+            
             return out
         
         return line
@@ -412,49 +422,6 @@ class MSCTranspiler:
 
         }
         
-        # get function arguments and do type checking
-        func_args = self.get_function_args(func)
-        in_args = func_args[:-1]
-        ret_arg = func_args[-1]
-
-        # ? means optional argument
-        # * means any number of arguments of the following type
-
-        n_in_args_max = len(in_args)
-        n_in_args_min = len([arg for arg in in_args if not "?" in arg])
-
-        if any("*" in arg for arg in in_args):
-            n_in_args_max = 999999
-            n_in_args_min = 0
-
-            in_args.extend(["Any"] * (len(args) - len(in_args)))
-
-
-        if n_in_args_min > len(args) or len(args) > n_in_args_max:
-            raise ValueError(f"Function {func} expects {len(in_args)} arguments, got {len(args)}: {args}")
-        
-        if len(args) < n_in_args_max:
-            args.extend(["X"] * (n_in_args_max - len(args)))
-            default_args = self._get_default_args(func)
-            for arg_idx in range(n_in_args_max):
-                if default_args[arg_idx] == "X":
-                    continue
-                if args[arg_idx] == "X":
-                    args[arg_idx] = default_args[arg_idx]
-
-                
-
-
-        for idx, (arg, in_arg) in enumerate(zip(args, in_args)):
-            arg_type = self._literal_type(arg)
-            if in_arg == "Any" or arg_type == "Any":
-                # Either in_arg takes in Any or the arg is not a literal
-                continue
-            if arg_type not in in_arg.split("|"):
-                raise ValueError(f"Argument [{idx+1}] of function [{func}] must be of type [{in_arg}], got [{arg_type}]")
-            
-
-
         if func not in function_map:
             return f"{func}({', '.join(args)})"
         
@@ -482,6 +449,8 @@ class MSCTranspiler:
         # Skip empty lines
         if not line:
             return ""
+        
+        out_str = "    " * self.indent_level
             
         # Handle for loops
         if line.startswith("for"):
@@ -505,30 +474,39 @@ class MSCTranspiler:
         
         # Handle while loops
         if line.startswith("while"):
-            return f"{'    ' * self.indent_level}{line}"
+            out_str += line
+            return out_str
             
         # Handle if statements
         if line.startswith("if"):
-            return f"{'    ' * self.indent_level}if {self.parse_function_call2(line, IGNORE_PREV=True)}:"
+            out_str += self.parse_function_call2(line, IGNORE_PREV=False) + ":"
+            if out_str.endswith("::"):
+                out_str = out_str[:-1]
+            return out_str
             
         # Handle break and continue
         if line in ["break", "continue"]:
-            return f"{'    ' * self.indent_level}{line}"
+            out_str += line
+            return out_str
             
         # Handle function calls
         if "(" in line:
-            return f"{'    ' * self.indent_level}{self.parse_function_call2(line)}"
+            out_str += self.parse_function_call2(line)
+            return out_str
 
         # Handle variable assignments
         if "=" in line:
             var, expr = line.split("=")
-            return f"{'    ' * self.indent_level}{var.strip()} = {self.parse_function_call2(expr.strip())}"
+            out_str += var.strip() + " = " + self.parse_function_call2(expr.strip())
         
-        return f"{'    ' * self.indent_level}{line}"
+        return out_str
 
     def transpile(self, msc_code):
         python_code = []
-        
+
+        if not msc_code.endswith("\n"):
+            msc_code += "\n"
+                
         for line in msc_code.split("\n"):
             if line.strip():
                 # Update indent level
