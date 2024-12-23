@@ -198,7 +198,16 @@ class MSCTranspiler:
             var = var[1:-1]
             func = func[1:-1]
             args = args[1:-1]
-            args = var + "," + args
+            printd(f"{var=}, {func=}, {args=}")
+
+            if not func.startswith("!"):
+                args = var + "," + args
+            else:
+                func = func[1:]
+                if not args.strip():
+                    args = '""'
+                    
+            
             args = self._parse_args(args)
             
             if func.startswith("?"):
@@ -215,6 +224,15 @@ class MSCTranspiler:
             func, args = bracket_blocks
             func = func[1:-1]
             args = args[1:-1]
+
+            printd(f"NORMAL CALL: {func=}, {args=}")
+
+            if args[0].startswith("!"):
+                var = func
+                func = args[1:]
+                printd(f"{var=}, {func=}")
+                return self.parse_function_call2(f"({var}) (!{func}) ()")
+
             args = self._parse_args(args)
 
             printd(f"NORMAL CALL: {func=}, {args=}")
@@ -401,6 +419,7 @@ class MSCTranspiler:
             # universal functions
             "print": lambda *x: f"print({', '.join(x)})",
             "type": lambda x: f"type({x})",
+            "input": lambda x: f"input({x})",
 
             # comparison functions
             "eq": lambda x, y: f"{x} == {y}",
