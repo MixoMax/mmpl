@@ -1,23 +1,35 @@
+// Mixo-script v0.1.0
 
-def prime_factors(n) {
-    factors = []
-    for i in 2...math.sqrt(n)+1 {
-        while n % i == 0 {
-            factors.append(i)
-            n = n / i
-        }
-    }
-    if n > 1 {
-        factors.append(n)
-    }
-    return factors
-}
+// io read
+read
+    "./input.txt" //alternatively: "io:stdin" for stdin
+    split "\n"
+    as lines
 
 
-def main() {
-    input_str = "65 3 abc -350"
-    nums = input_str.split(" ") -> int ?? 0
-    factors = nums -> prime_factors
-    factors_squared = factors -> (x) => { x * x}
-    print(factors_squared)
-}
+// variable assignment
+create
+    list
+    as nums
+
+// operations
+map
+    lines
+    as line
+    to nums
+    op toInt
+
+// multiple operations in one map block
+map
+    nums
+    as num
+    to nums
+    op (num) => {num * num}
+    op abs
+
+// io write
+write
+    nums
+    join "\n"
+    to "./output.txt" // alternatively "io:stdout" for stdout
+
